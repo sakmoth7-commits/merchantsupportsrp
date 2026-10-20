@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="km">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Field Activity Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Khmer:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- LOGIN -->
+<section id="loginView" class="center-screen">
+  <form id="loginForm" class="card login-card">
+    <h1>Field Activity Tracker</h1>
+    <p class="muted">ចូលប្រើប្រព័ន្ធ</p>
+    <label>Username<input id="loginUser" autocomplete="username" required></label>
+    <label>Password<input id="loginPass" type="password" autocomplete="current-password" required></label>
+    <button class="btn primary" id="loginBtn" type="submit">Login</button>
+    <p id="loginErr" class="error"></p>
+  </form>
+</section>
+
+<!-- APP -->
+<section id="appView" hidden>
+  <header class="topbar">
+    <div>
+      <strong id="whoName"></strong>
+      <span id="whoRole" class="badge"></span>
+    </div>
+    <button class="btn small" id="logoutBtn">Logout</button>
+  </header>
+  <nav id="tabs" class="tabs"></nav>
+
+  <!-- FORM (role user) -->
+  <main id="formView" class="wrap" hidden>
+    <form id="activityForm" class="card" novalidate>
+      <h2>កត់ត្រាសកម្មភាព</h2>
+
+      <label>Activity Type *
+        <select id="activityType" required></select>
+      </label>
+
+      <div class="row">
+        <button type="button" class="btn" id="scanBtn">📷 Scan QR</button>
+        <button type="button" class="btn" id="scanFileBtn">🖼️ QR ពីរូបភាព</button>
+        <input type="file" id="qrFile" accept="image/*" hidden>
+      </div>
+      <div id="qrReader" hidden></div>
+      <details id="rawBox" hidden><summary>Raw QR text</summary><pre id="rawText"></pre></details>
+
+      <label>Merchant Name *<input id="merchantName" required></label>
+      <div class="grid2">
+        <label>Merchant ID (MID)<input id="mid" inputmode="text"></label>
+        <label>TID<input id="tid" inputmode="text"></label>
+      </div>
+      <label>លេខទូរស័ព្ទ<input id="phone" type="tel" inputmode="tel"></label>
+
+      <fieldset>
+        <legend>ទីតាំងអាជីវកម្ម</legend>
+        <div class="row">
+          <button type="button" class="btn" id="gpsBtn">📍 ទីតាំងបច្ចុប្បន្ន</button>
+          <button type="button" class="btn" id="mapBtn">🗺️ ជ្រើសលើផែនទី</button>
+        </div>
+        <div id="map" hidden></div>
+        <p class="muted" id="locText">មិនទាន់ជ្រើសទីតាំង</p>
+        <input type="hidden" id="lat"><input type="hidden" id="lng">
+      </fieldset>
+
+      <fieldset>
+        <legend>Business Hour</legend>
+        <div class="grid2">
+          <label>បើក<input type="time" id="openTime"></label>
+          <label>បិទ<input type="time" id="closeTime"></label>
+        </div>
+      </fieldset>
+
+      <label>Business Type
+        <select id="businessType"></select>
+      </label>
+
+      <fieldset>
+        <legend>រូបភាព</legend>
+        <button type="button" class="btn" id="photoBtn">🖼️ ជ្រើសរូបភាព (Gallery)</button>
+        <input type="file" id="photoInput" accept="image/*" multiple hidden>
+        <div id="previews" class="previews"></div>
+        <p class="muted">រូបភាពផ្ញើទៅ Telegram តែប៉ុណ្ណោះ (មិនកត់ក្នុង Google Sheets)</p>
+      </fieldset>
+
+      <label>Additional Notes<textarea id="notes" rows="3"></textarea></label>
+
+      <button class="btn primary" id="submitBtn" type="submit">Submit</button>
+    </form>
+  </main>
+
+  <!-- USER MANAGEMENT (admin) -->
+  <main id="usersView" class="wrap" hidden>
+    <form id="userForm" class="card">
+      <h2 id="uTitle">បន្ថែម User ថ្មី</h2>
+      <input type="hidden" id="uOrig">
+      <div class="grid2">
+        <label>Username *<input id="uName" required pattern="[A-Za-z0-9._\-]{3,30}" autocomplete="off"></label>
+        <label>ឈ្មោះពេញ<input id="uFull"></label>
+        <label>Role
+          <select id="uRole"><option value="user">user</option><option value="admin">admin</option></select>
+        </label>
+        <label>Password<input id="uPass" type="password" minlength="6" autocomplete="new-password"></label>
+      </div>
+      <div class="row">
+        <button class="btn primary" type="submit" style="width:auto;margin:0">រក្សាទុក</button>
+        <button class="btn" type="button" id="uClear">សម្អាត</button>
+      </div>
+    </form>
+    <div class="card">
+      <h3>បញ្ជី User</h3>
+      <div class="table-wrap"><table id="userTable"></table></div>
+    </div>
+  </main>
+
+  <!-- DATA / DASHBOARD -->
+  <main id="dataView" class="wrap" hidden>
+    <div class="card">
+      <div class="filters">
+        <label>ពីថ្ងៃ<input type="date" id="fFrom"></label>
+        <label>ដល់ថ្ងៃ<input type="date" id="fTo"></label>
+        <label>Activity<select id="fType"></select></label>
+        <label id="fUserWrap">User<select id="fUser"></select></label>
+        <label>ស្វែងរក<input id="fSearch" placeholder="Merchant / MID / TID"></label>
+      </div>
+      <div class="row">
+        <button class="btn small" id="refreshBtn">🔄 Refresh</button>
+        <button class="btn small" id="csvBtn">⬇️ CSV</button>
+        <button class="btn small" id="xlsxBtn">⬇️ Excel</button>
+      </div>
+    </div>
+
+    <div id="stats" class="stats"></div>
+
+    <div id="charts" class="charts">
+      <div class="card"><h3>តាម Activity Type</h3><canvas id="chType"></canvas></div>
+      <div class="card"><h3>តាមថ្ងៃ</h3><canvas id="chDay"></canvas></div>
+      <div class="card" id="chUserCard"><h3>តាម User</h3><canvas id="chUser"></canvas></div>
+    </div>
+
+    <div class="card">
+      <h3>បញ្ជីទិន្នន័យ (<span id="rowCount">0</span>)</h3>
+      <div class="table-wrap"><table id="dataTable"></table></div>
+    </div>
+  </main>
+</section>
+
+<div id="toast" class="toast" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
